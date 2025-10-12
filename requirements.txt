@@ -1,0 +1,3 @@
+boto3
+pypdfium2
+Pillow
