@@ -14,9 +14,9 @@ export BFE_S3_SECRET_ACCESS_KEY
 
 
 git:
-	@if [ -z "$(MSG)" ]; then echo 'ERROR: set MSG, e.g. make git MSG="feat: deploy function"'; exit 1; fi
+	@if [ -z "$(M)" ]; then echo 'ERROR: set MSG, e.g. make git MSG="feat: deploy function"'; exit 1; fi
 	git add -A
-	git commit -m "$(MSG)"
+	git commit -m "$(M)"
 	git push origin main
 
 build-zip:
