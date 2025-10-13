@@ -16,6 +16,26 @@ import pypdfium2 as pdfium
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def get_s3_client():
+    endpoint_url = os.environ.get("S3_ENDPOINT_URL")
+    region_name = os.environ.get("AWS_REGION")
+    # Credentials are taken from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars by boto3 automatically
+    session = boto3.session.Session()
+    return session.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        region_name=region_name,
+    )
+
+def get_bucket_name() -> str:
+    bucket = os.environ.get("S3_BUCKET_NAME")
+    if not bucket:
+        raise BadRequest("Environment variable 'S3_BUCKET_NAME' is not set.")
+    return bucket
+
+
+S3_CLIENT = get_s3_client()
+BUCKET_NAME = get_bucket_name()
 
 class BadRequest(Exception):
     pass
@@ -81,23 +101,9 @@ def parse_event(event: Dict[str, Any]) -> Tuple[str, str]:
     return pdf_key, output_prefix
 
 
-def get_s3_client():
-    endpoint_url = os.environ.get("S3_ENDPOINT_URL")
-    region_name = os.environ.get("AWS_REGION")
-    # Credentials are taken from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars by boto3 automatically
-    session = boto3.session.Session()
-    return session.client(
-        "s3",
-        endpoint_url=endpoint_url,
-        region_name=region_name,
-    )
 
 
-def get_bucket_name() -> str:
-    bucket = os.environ.get("S3_BUCKET_NAME")
-    if not bucket:
-        raise BadRequest("Environment variable 'S3_BUCKET_NAME' is not set.")
-    return bucket
+
 
 
 def download_pdf_to_tmp(s3_client, bucket: str, pdf_key: str) -> str:
