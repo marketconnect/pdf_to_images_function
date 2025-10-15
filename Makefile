@@ -1,7 +1,7 @@
 ZIP := pdf-to-images-function.zip
 SHELL := /bin/bash
 FUNC_RUNTIME := python312
-ENTRY := handler.handler
+ENTRY := src.handler.handler
 FUNC := pdf-to-images-function
 S3_ENDPOINT_URL := https://storage.yandexcloud.net
 AWS_REGION := ru-central1
@@ -47,4 +47,5 @@ deploy: check-env build-zip
 	  --service-account-id $(BFE_SA) \
 	  --entrypoint $(ENTRY) \
 	  --source-path ./$(ZIP) \
+	  --execution-timeout 60s \
 	  --environment $(ENV_ARGS)
