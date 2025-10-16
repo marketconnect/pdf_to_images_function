@@ -47,5 +47,6 @@ deploy: check-env build-zip
 	  --service-account-id $(BFE_SA) \
 	  --entrypoint $(ENTRY) \
 	  --source-path ./$(ZIP) \
+	  --memory 512MB \
 	  --execution-timeout 60s \
 	  --environment $(ENV_ARGS)
