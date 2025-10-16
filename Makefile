@@ -48,5 +48,5 @@ deploy: check-env build-zip
 	  --entrypoint $(ENTRY) \
 	  --source-path ./$(ZIP) \
 	  --memory 512MB \
-	  --execution-timeout 60s \
+	  --execution-timeout 180s \
 	  --environment $(ENV_ARGS)

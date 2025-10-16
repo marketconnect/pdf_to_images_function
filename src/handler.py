@@ -129,19 +129,47 @@ def convert_pdf_pages_to_webp_and_upload(
     s3_client, bucket: str, local_pdf_path: str, output_prefix: str, dpi: int = 150, quality: int = 85
 ) -> int:
     """
-    Convert PDF pages to WebP and upload each page as {output_prefix}page-{i}.webp, 1-based indexing.
-    Returns the number of pages processed.
+        Convert PDF pages to WebP and upload each page as {output_prefix}page-{i}.webp, 1-based indexing.
+        Skips pages that already exist in the destination.
+        Returns the total number of pages in the PDF.
     """
-    # Scale factor based on DPI relative to PDF's 72 DPI reference
-    scale = dpi / 72.0
-
+    
     logger.info("Opening PDF via pypdfium2: %s", local_pdf_path)
     doc = pdfium.PdfDocument(local_pdf_path)
     try:
         page_count = len(doc)
         logger.info("PDF has %d pages", page_count)
+        # Find pages that already exist in S3 to avoid re-processing.
+        existing_pages = set()
+        try:
+            paginator = s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=bucket, Prefix=output_prefix):
+                for obj in page.get("Contents", []):
+                    key = obj.get("Key")
+                    if not key:
+                        continue
+                    # Extract 'page-N.webp' from '.../page-N.webp'
+                    filename = key.split("/")[-1]
+                    if filename.startswith("page-") and filename.endswith(".webp"):
+                        try:
+                            page_num_str = filename[len("page-") : -len(".webp")]
+                            existing_pages.add(int(page_num_str))
+                        except (ValueError, TypeError):
+                            logger.warning("Could not parse page number from S3 key: %s", key)
+        except ClientError as e:
+            logger.error("Failed to list existing pages in S3 for prefix '%s': %s", output_prefix, e)
+            raise  # Propagate the error to the main handler
+        logger.info("Found %d existing pages in S3. Will skip them.", len(existing_pages))
+        # Scale factor based on DPI relative to PDF's 72 DPI reference
+        scale = dpi / 72.0
+        
         for i in range(page_count):
-            logger.info("Rendering page %d/%d", i + 1, page_count)
+            page_num = i + 1
+            if page_num in existing_pages:
+                logger.info("Skipping page %d/%d (already exists)", page_num, page_count)
+                continue
+            logger.info("Rendering page %d/%d", page_num, page_count)
+            
             page = doc[i]
             try:
                 bitmap = page.render(scale=scale)
@@ -150,7 +178,7 @@ def convert_pdf_pages_to_webp_and_upload(
                 pil_img.save(buf, format="WEBP", quality=quality, method=6)
                 buf.seek(0)
 
-                key = f"{output_prefix}page-{i+1}.webp"
+                key = f"{output_prefix}page-{page_num}.webp"
                 upload_bytes(s3_client, bucket, key, buf.getvalue(), "image/webp")
             finally:
                 # Explicitly close page resources
